@@ -199,21 +199,21 @@ class JSObserver(Observer):
         if not os.path.exists(outputdir):
             raise Exception("JSObserver: Output directory specified (%s) doesn't appear to exist. This should be the same as the Overviewer output directory")
 
-        self.logfile = open(os.path.join(outputdir, "progress.json"), "w+", 0)
+        self.logfile = os.path.join(outputdir, "progress.json")
         self.json["message"]="Render starting..."
         self.json["update"]=self.minrefresh
         self.json["messageTime"]=time.time()
-        json.dump(self.json, self.logfile)
-        self.logfile.flush()
+        r=open(self.logfile, "w+", 0)
+        json.dump(self.json, r)
+        r.close()
 
     def start(self, max_value):
-        self.logfile.seek(0)
-        self.logfile.truncate()
+        r=open(self.logfile, "w+", 0)
         self.json["message"] = self.messages["totalTiles"] % (max_value)
         self.json["update"] = self.minrefresh
         self.json["messageTime"] = time.time()
-        json.dump(self.json, self.logfile)
-        self.logfile.flush()
+        json.dump(self.json, r)
+        r.close()
         self.start_time=time.time()
         self._set_max_value(max_value)
 
@@ -226,8 +226,7 @@ class JSObserver(Observer):
         """
         self.end_time = time.time()
         duration = self.end_time - self.start_time
-        self.logfile.seek(0)
-        self.logfile.truncate()
+        r=open(self.logfile, "w+", 0)
         hours = duration // 3600
         duration = duration % 3600
         minutes = duration // 60
@@ -235,8 +234,8 @@ class JSObserver(Observer):
         self.json["message"] = self.messages["renderCompleted"] % (hours, minutes, seconds)
         self.json["update"] = 60000 # The 'renderCompleted' message will always be visible (until the next render)
         self.json["messageTime"] = time.time()
-        json.dump(self.json, self.logfile)
-        self.logfile.close()
+        json.dump(self.json, r)
+        r.close()
 
     def is_finished(self):
         return self.end_time is not None
@@ -258,18 +257,19 @@ class JSObserver(Observer):
         self._current_value = current_value
         if self._need_update():
             refresh = max(1500*(time.time() - self.last_update_time), self.minrefresh) // 1
-            self.logfile.seek(0)
-            self.logfile.truncate()
+
             if self.get_current_value():
                 duration = time.time() - self.start_time
                 eta = self.format(duration * self.get_max_value() / self.get_current_value() - duration)
             else:
                 eta = "?"
+
+            r=open(self.logfile, "w+", 0)
             self.json["message"] = self.messages["renderProgress"] % (self.get_current_value(), self.get_max_value(), self.get_percentage(), str(eta))
             self.json["update"] = refresh
             self.json["messageTime"] = time.time()
-            json.dump(self.json, self.logfile)
-            self.logfile.flush()
+            json.dump(self.json, r)
+            r.flush()
             self.last_update_time = time.time()
             self.last_update = current_value
             return True
